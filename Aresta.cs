@@ -1,19 +1,20 @@
 ﻿using System.Drawing;
+using System.Windows.Forms;
 
 namespace Grafos
 {
     class Aresta
     {
         Vertice vertice;
-        string value;
+        TextBox value;
 
-        public Aresta(Vertice vertice, string value)
+        public Aresta(Vertice vertice, TextBox value)
         {
             this.Vertice = vertice;
             this.value = value;
         }
 
         public Vertice Vertice { get => vertice; set => vertice = value; }
-        public string Value { get => value; set => this.value = value; }
+        public TextBox Value { get => value; set => this.value = value; }
     }
 }
