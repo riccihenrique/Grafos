@@ -13,27 +13,26 @@ namespace Grafos
 
         private List<Vertice> vertices = new List<Vertice>();
         private List<Aresta>[] arestas = new List<Aresta>[MAXLEN];
-        private List<Label> labels = new List<Label>();
 
         private int[,] ma = new int[MAXLEN, MAXLEN];
         private int[,] mi = new int[MAXLEN, MAXLEN * (MAXLEN - 1) / 2];
 
         private int idx1 = -1, idx2 = -1;
         private int idxSel = -1;
-        private int tl = 0;
-        private int miCol = 0;
+        private int miCol = 0; // Index de coluna da MI
         private int cont = 0; // Auxilia na seleção dos pontos
 
         public fGrafos()
         {
             InitializeComponent();
+            atualizaTudo();
         }
 
         private void Form1_MouseClick(object sender, MouseEventArgs e)
         {
             Graphics g = CreateGraphics();
             Pen p = new Pen(Color.Black);
-            int pos;
+            int pos, i1, i2;
             if (e.Location.Y < groupBox1.Location.Y)
                 if (e.Button == MouseButtons.Left && e.Y < groupBox1.Location.Y - 20 && 
                     e.Y > 20 && e.X > 20 && e.X < this.Width - 20) //Botão esquerdo cria novos vértices e seleciona-os para exclusão
@@ -41,7 +40,7 @@ namespace Grafos
                     pos = find(e.Location);
                     if (pos == vertices.Count)
                     {
-                        if (tl < MAXLEN)
+                        if (vertices.Count < MAXLEN)
                         {
                             int i = nextLabel();
                             Label l = new Label();
@@ -51,15 +50,15 @@ namespace Grafos
                             l.Text = l.Name;
                             l.MouseClick += new MouseEventHandler(label_mouseClicl);
 
-                            labels.Add(l);
                             Controls.Add(l);
-                            vertices.Add(new Vertice(e.Location, l.Name));
+                            vertices.Add(new Vertice(e.Location, l));
 
                             arestas[i] = new List<Aresta>();
                             g.DrawEllipse(p, new Rectangle(e.X - 20, e.Y - 20, 40, 40));
 
-                            vertices.Sort(new GFG());
-                            tl++;
+                            //Controla a seleção
+                            idx1 = -1;
+                            cont = 0;
                         }
                         else
                             MessageBox.Show("Você não pode utilizar mais de 10 vértices!!", "Atenção");
@@ -83,46 +82,44 @@ namespace Grafos
                     {
                         if (f < vertices.Count)
                         {
-                            TextBox tb = new TextBox();
-                            tb.BackColor = Color.FromArgb(255, 240, 240, 240);
-                            tb.TextChanged += new EventHandler(lost_Focus);
-                            tb.Size = new Size(15, 13);
-
                             if (cont % 2 == 0)
                                 idx1 = f;
                             else
                             {
                                 idx2 = f;
+
+                                TextBox tb = new TextBox(); //TB que guarda os valores das arestas
+                                tb.BackColor = Color.FromArgb(255, 240, 240, 240);
+                                tb.TextChanged += new EventHandler(lost_Focus);
+                                tb.Size = new Size(15, 13);
                                 tb.Location = new Point(Math.Abs((vertices[idx1].Location.X - vertices[idx2].Location.X)) / 2 + Math.Min(vertices[idx1].Location.X, vertices[idx2].Location.X),
                                                         Math.Abs((vertices[idx1].Location.Y - vertices[idx2].Location.Y)) / 2 + Math.Min(vertices[idx1].Location.Y, vertices[idx2].Location.Y));
-                                tb.Name = idx1 + "" + idx2 ;
 
-                                if (idx1 != idx2)
-                                {           
-                                    if(!verificaLista(arestas[idx1], vertices[idx2].Label))
+                                //Ids do vetor de arestas. Idx são os indices da lista de vertices
+                                i1 = char.Parse(vertices[idx1].Label.Text) - 65;
+                                i2 = char.Parse(vertices[idx2].Label.Text) - 65;
+
+                                tb.Name = i1 + "" + i2;
+
+                                if (idx1 != idx2) 
+                                {
+                                    if (!verificaLista(arestas[i1], vertices[idx2].Label.Text)) //Impede dupla aresta
                                     {
                                         g.DrawLine(p, vertices[idx1].Location, vertices[idx2].Location);
-                                        arestas[idx1].Add(new Aresta(vertices[idx2], tb));
-                                        arestas[idx2].Add(new Aresta(vertices[idx1], tb));
+                                        arestas[i1].Add(new Aresta(vertices[idx2], tb));
+                                        arestas[i2].Add(new Aresta(vertices[idx1], tb));
 
-                                        ma[idx1, idx2] = tb.Text == "" ? 1 : int.Parse(tb.Text);
-                                        ma[idx2, idx1] = tb.Text == "" ? 1 : int.Parse(tb.Text);
-
-                                        milabel[miCol] = "(" + vertices[idx1].Label + "," + vertices[idx2].Label + ")";
-                                        mi[idx1, miCol] = tb.Text == "" ? 1 : int.Parse(tb.Text);
-                                        mi[idx2, miCol++] = tb.Text == "" ? 1 : int.Parse(tb.Text);
+                                        ma[i1, i2] = 1;
+                                        ma[i2, i1] = 1;
                                     }
                                 }
                                 else
                                 {
-                                    if(!verificaLista(arestas[idx1], vertices[idx2].Label))
+                                    if(!verificaLista(arestas[i1], vertices[idx2].Label.Text))
                                     {
                                         g.DrawEllipse(p, new Rectangle(vertices[idx1].Location.X - 55, vertices[idx1].Location.Y, 40, 40));
-                                        arestas[idx1].Add(new Aresta(vertices[idx2], tb));
-                                        ma[idx1, idx1] = tb.Text == "" ? 1 : int.Parse(tb.Text);
-
-                                        milabel[miCol] = "(" + vertices[idx1].Label + "," + vertices[idx2].Label + ")";
-                                        mi[idx1, miCol++] = tb.Text == "" ? 1 : int.Parse(tb.Text);
+                                        arestas[i1].Add(new Aresta(vertices[idx2], tb));
+                                        ma[i1, i1] = 1;
                                     }
                                 }
 
@@ -137,12 +134,11 @@ namespace Grafos
                     else
                         idxSel = f;
                 }
-            showList();
-            showMA();
-            showMI();
+
+            atualizaTudo();
         }
 
-        private int find(Point p)
+        private int find(Point p) //Encontra o index na lista de vertices
         {
             int i = 0;
             while (i < vertices.Count && Math.Sqrt(Math.Pow(p.X - vertices[i].Location.X, 2) + 
@@ -152,7 +148,7 @@ namespace Grafos
             return i;
         }
 
-        private void Form1_KeyPress(object sender, KeyPressEventArgs e)
+        private void Form1_KeyPress(object sender, KeyPressEventArgs e) //Identifica a tecla para deleção
         {
             if (e.KeyChar.ToString().ToUpper().Equals("D") && idxSel != -1)
             {
@@ -163,45 +159,42 @@ namespace Grafos
                 // Delete o vértice
                 g.DrawEllipse(p, new Rectangle(vertices[idxSel].Location.X - 20, vertices[idxSel].Location.Y - 20, 40, 40));
 
-                id1 = find(vertices[idxSel].Location);
+                id1 = char.Parse(vertices[idxSel].Label.Text) - 65;
+                
                 //Deleta as arestas
-                for (int i = 0; i < arestas[idxSel].Count; i++)
+                for (int i = 0, qtd = arestas[id1].Count; i < qtd; i++)
                 {
-                    if (arestas[idxSel][i].Vertice == vertices[idxSel])
+                    if (arestas[id1][i].Vertice == vertices[idxSel])
                         g.DrawEllipse(p, new Rectangle(vertices[idxSel].Location.X - 55, vertices[idxSel].Location.Y, 40, 40));
                     else
-                        g.DrawLine(p, arestas[idxSel][i].Vertice.Location, vertices[idxSel].Location);
-                                        
-                    id2 = find(vertices[i].Location);
+                        g.DrawLine(p, arestas[id1][i].Vertice.Location, vertices[idxSel].Location);
 
-                    //Corrigir MI e lista
+                    id2 = char.Parse(arestas[id1][i].Vertice.Label.Text) - 65;
 
-                    //int j = 0;
-                    //while (!arestas[id2][j].Vertice.Label.Equals(vertices[idxSel].Label))
-                    //    j++;
-                    //arestas[id2].RemoveAt(j);
+                    Controls.Remove(arestas[id1][i].Value); //Remove TB da tela
 
+                    //Corrige lista
+                    int j = 0;
+                    while (j < arestas[id2].Count && !arestas[id2][j].Vertice.Label.Equals(vertices[idxSel].Label))
+                        j++;
+                    if(j < arestas[id2].Count)
+                        arestas[id2].RemoveAt(j);
+
+                    //Corrige MA e MI
                     ma[id1, id2] = 0;
                     ma[id2, id1] = 0;
-
-                    Controls.Remove(arestas[idxSel][i].Value);
                 }
-
-                arestas[idxSel] = null;
-
+                
+                Controls.Remove(vertices[idxSel].Label);
+                arestas[id1] = null;
                 vertices.RemoveAt(idxSel);
-                Controls.Remove(labels[idxSel]);
-                labels.RemoveAt(idxSel);
 
-                tl--;
-
-                showList();
-                showMA();
-                showMI();
+                idxSel = -1;
+                atualizaTudo();
             }
         }
 
-        private void label_mouseClicl(object sender, MouseEventArgs e)
+        private void label_mouseClicl(object sender, MouseEventArgs e) //Click no label do vértice. Mesmo efeito de clicar no vertice em si
         {
             Form1_MouseClick(sender, e);
         }
@@ -215,7 +208,7 @@ namespace Grafos
                 {
                     S = rotulos[i] + " | ";
                     foreach (Aresta aux in arestas[i])
-                        S += " -> (" + aux.Vertice.Label + "," + aux.Value.Text + ")";
+                        S += " -> (" + aux.Vertice.Label.Text + "," + aux.Value.Text + ")";
                     lbxLista.Items.Add(S);
                 }         
         }
@@ -252,8 +245,22 @@ namespace Grafos
         {
             lbxMI.Items.Clear();
 
-            String S = "    | ";
+            //Criada a partir da MI
+            miCol = 0;
+            mi = new int[MAXLEN, MAXLEN * (MAXLEN - 1) / 2];
+            for (int i = 0, j = 0; i < MAXLEN; i++, j++)
+                if(arestas[i] != null)
+                {
+                    for (int k = j; k < MAXLEN; k++)
+                        if (arestas[k] != null && ma[i, k] != 0)
+                        {
+                            milabel[miCol] = "(" + rotulos[i].ToString() + "," + rotulos[k].ToString() + ")";
+                            mi[i, miCol] = ma[i, k];
+                            mi[k, miCol++] = ma[i, k];
+                        }
+                }
 
+            String S = "    | ";
             for (int i = 0; i < miCol; i++)
                 S += " " + milabel[i];
 
@@ -265,14 +272,14 @@ namespace Grafos
 
             lbxMI.Items.Add(S);
 
-            for (int i = 0; i < tl; i++)
-            {
-                S = rotulos[i] + "  | ";
-                for (int j = 0; j < miCol; j++)
-                    S += "   " + mi[i, j] + "    ";
-                lbxMI.Items.Add(S);
-            }
-
+            for (int i = 0; i < MAXLEN; i++)
+                if(arestas[i] != null)
+                {
+                    S = rotulos[i] + "  | ";
+                    for (int j = 0; j < miCol; j++)
+                        S += "   " + mi[i, j] + "    ";
+                    lbxMI.Items.Add(S);
+                }
         }
 
         private bool verificaLista(List<Aresta> la, string label)
@@ -290,7 +297,7 @@ namespace Grafos
             return flag;
         }
 
-        private void lost_Focus(object sender, EventArgs e)
+        private void lost_Focus(object sender, EventArgs e) //Altera os valores quando o foco da TB de valor é alterado
         {            
             int i1 = 0, i2 = 0, num, i;
             try
@@ -300,7 +307,7 @@ namespace Grafos
                 i2 = num % 10;
 
                 i = 0;
-                while (i < arestas[i1].Count && !arestas[i1][i].Vertice.Label.Equals("" + rotulos[i2]))
+                while (i < arestas[i1].Count && !arestas[i1][i].Vertice.Label.Text.Equals("" + rotulos[i2]))
                     i++;
 
                 num = int.Parse(arestas[i1][i].Value.Text);
@@ -313,21 +320,10 @@ namespace Grafos
             ma[i1, i2] = num;
             ma[i2, i1] = num;
 
-
-            for(i = 0; i < miCol; i++)
-                if (milabel[i].Replace("(", "").Replace(")", "").Equals(rotulos[i1] + "," + rotulos[i2]) ||
-                    milabel[i].Replace("(", "").Replace(")", "").Equals(rotulos[i2] + "," + rotulos[i1]))
-                    break;
-
-            mi[i1, i] = num;
-            mi[i2, i] = num;
-
-            showList();
-            showMA();
-            showMI();
+            atualizaTudo();
         }
 
-        private int nextLabel()
+        private int nextLabel() //Identifica o label do proximo vertice a ser adicionado
         {
             int i = 0, j = 0;
             bool flag = false;
@@ -335,7 +331,7 @@ namespace Grafos
             while(i < MAXLEN && !flag)
             {
                 j = 0;
-                while (j < vertices.Count && !vertices[j].Label.Equals(rotulos[i].ToString()))
+                while (j < vertices.Count && !vertices[j].Label.Text.Equals(rotulos[i].ToString()))
                     j++;
 
                 if (j == vertices.Count)
@@ -347,21 +343,27 @@ namespace Grafos
             return i;
         }
 
-        private int contain(string s)
+        private void atualizaTudo()
         {
-            int i = 0;
-            while (i < vertices.Count && !vertices[i].Label.Equals(s))
-                i++;
-
-            return i;
+            showList();
+            showMA();
+            showMI();
+            updateLabel();
         }
-    }
 
-    class GFG : IComparer<Vertice>
-    {
-        public int Compare(Vertice x, Vertice y)
+        private void updateLabel()
         {
-            return x.Label.CompareTo(y.Label);
+            if (idx1 != -1)
+                lbSel.Text = vertices[idx1].Label.Text;
+            else
+                lbSel.Text = "Nenhum";
+
+            if (idxSel != -1)
+                lbEx.Text = vertices[idxSel].Label.Text;
+            else
+                lbEx.Text = "Nenhum";
+
+            lbTot.Text = vertices.Count + "";
         }
     }
 }
