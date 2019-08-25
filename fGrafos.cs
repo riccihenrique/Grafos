@@ -33,8 +33,9 @@ namespace Grafos
             Graphics g = CreateGraphics();
             Pen p = new Pen(Color.Black);
             int pos, i1, i2;
+            
             if (e.Location.Y < groupBox1.Location.Y)
-                if (e.Button == MouseButtons.Left && e.Y < groupBox1.Location.Y - 20 && 
+                if (e.Button == MouseButtons.Left && e.Y < groupBox1.Location.Y - 20 &&
                     e.Y > 20 && e.X > 20 && e.X < this.Width - 20) //Botão esquerdo cria novos vértices e seleciona-os para exclusão
                 {
                     pos = find(e.Location);
@@ -101,25 +102,65 @@ namespace Grafos
 
                                 tb.Name = i1 + "" + i2;
 
-                                if (idx1 != idx2) 
+                                if (idx1 != idx2)
                                 {
-                                    if (!verificaLista(arestas[i1], vertices[idx2].Label.Text)) //Impede dupla aresta
+                                    int qntLista = verificaLista(arestas[i1], vertices[idx2].Label.Text);
+                                    if (qntLista != 2) //Impede adicionar mais de 2 arestas paralelas
                                     {
-                                        g.DrawLine(p, vertices[idx1].Location, vertices[idx2].Location);
-                                        arestas[i1].Add(new Aresta(vertices[idx2], tb));
-                                        arestas[i2].Add(new Aresta(vertices[idx1], tb));
+                                        int dx, dy;
+                                        dx = vertices[idx2].Location.X - vertices[idx1].Location.X;
+                                        dy = vertices[idx2].Location.Y - vertices[idx1].Location.Y;
+                                        
+                                        if (dx < dy)
+                                        {
+                                            dx = -7;
+                                            dy = 7;
+                                        }
+                                        else
+                                        {
+                                            dx = 7;
+                                            dy = -7;
+                                        }
 
-                                        ma[i1, i2] = 1;
-                                        ma[i2, i1] = 1;
+                                        // Pontos de controle para apagar as arestas posteriormente
+                                        Point p1, p2;
+                                        if (qntLista == 0)
+                                        {
+                                            p1 = new Point(vertices[idx1].Location.X + dx, vertices[idx1].Location.Y + dy);
+                                            p2 = new Point(vertices[idx2].Location.X + dx, vertices[idx2].Location.Y + dy);
+                                            tb.Location = new Point(Math.Abs((vertices[idx1].Location.X - vertices[idx2].Location.X)) / 2 + Math.Min(vertices[idx1].Location.X, vertices[idx2].Location.X) + dx - tb.Size.Width,
+                                                        Math.Abs((vertices[idx1].Location.Y - vertices[idx2].Location.Y)) / 2 + Math.Min(vertices[idx1].Location.Y, vertices[idx2].Location.Y) + dy - tb.Size.Height);
+                                        }
+                                        else
+                                        {
+                                            ma = null;
+                                            p1 = new Point(vertices[idx1].Location.X - dx, vertices[idx1].Location.Y - dy);
+                                            p2 = new Point(vertices[idx2].Location.X - dx, vertices[idx2].Location.Y - dy);
+                                            tb.Location = new Point(Math.Abs((vertices[idx1].Location.X - vertices[idx2].Location.X)) / 2 + Math.Min(vertices[idx1].Location.X, vertices[idx2].Location.X) - dx,
+                                                        Math.Abs((vertices[idx1].Location.Y - vertices[idx2].Location.Y)) / 2 + Math.Min(vertices[idx1].Location.Y, vertices[idx2].Location.Y) - dy);
+                                        }
+
+                                        g.DrawLine(p, p1, p2);
+                                        arestas[i1].Add(new Aresta(vertices[idx2], tb, p1, p2));
+                                        if (ma != null)
+                                            ma[i1, i2] = 1;
+
+                                        if (!ckbDigrafo.Checked)
+                                        {
+                                            arestas[i2].Add(new Aresta(vertices[idx1], tb, p1, p2));
+                                            if(ma != null)
+                                                ma[i2, i1] = 1;
+                                        }
                                     }
                                 }
                                 else
                                 {
-                                    if(!verificaLista(arestas[i1], vertices[idx2].Label.Text))
+                                    if (verificaLista(arestas[i1], vertices[idx2].Label.Text) != 2)
                                     {
                                         g.DrawEllipse(p, new Rectangle(vertices[idx1].Location.X - 55, vertices[idx1].Location.Y, 40, 40));
                                         arestas[i1].Add(new Aresta(vertices[idx2], tb));
-                                        ma[i1, i1] = 1;
+                                        if(ma != null)
+                                            ma[i1, i1] = 1;
                                     }
                                 }
 
@@ -160,36 +201,46 @@ namespace Grafos
                 g.DrawEllipse(p, new Rectangle(vertices[idxSel].Location.X - 20, vertices[idxSel].Location.Y - 20, 40, 40));
 
                 id1 = char.Parse(vertices[idxSel].Label.Text) - 65;
-                
-                //Deleta as arestas
-                for (int i = 0, qtd = arestas[id1].Count; i < qtd; i++)
+
+                if (!ckbDigrafo.Checked)
                 {
-                    if (arestas[id1][i].Vertice == vertices[idxSel])
-                        g.DrawEllipse(p, new Rectangle(vertices[idxSel].Location.X - 55, vertices[idxSel].Location.Y, 40, 40));
-                    else
-                        g.DrawLine(p, arestas[id1][i].Vertice.Location, vertices[idxSel].Location);
+                    //Deleta as arestas
+                    for (int i = 0, qtd = arestas[id1].Count; i < qtd; i++)
+                    {
+                        if (arestas[id1][i].Vertice == vertices[idxSel])
+                            g.DrawEllipse(p, new Rectangle(vertices[idxSel].Location.X - 55, vertices[idxSel].Location.Y, 40, 40));
+                        else
+                            g.DrawLine(p, arestas[id1][i].P1, arestas[id1][i].P2);
 
-                    id2 = char.Parse(arestas[id1][i].Vertice.Label.Text) - 65;
+                        Controls.Remove(arestas[id1][i].Value); //Remove TB da tela
 
-                    Controls.Remove(arestas[id1][i].Value); //Remove TB da tela
+                        id2 = char.Parse(arestas[id1][i].Vertice.Label.Text) - 65;
+                        //Corrige lista
+                        int j = 0;
+                        while (j < arestas[id2].Count && !arestas[id2][j].Vertice.Label.Equals(vertices[idxSel].Label))
+                            j++;
+                        if (j < arestas[id2].Count)
+                            arestas[id2].RemoveAt(j);
 
-                    //Corrige lista
-                    int j = 0;
-                    while (j < arestas[id2].Count && !arestas[id2][j].Vertice.Label.Equals(vertices[idxSel].Label))
-                        j++;
-                    if(j < arestas[id2].Count)
-                        arestas[id2].RemoveAt(j);
+                        //Corrige MA e MI
+                        if (ma != null)
+                        {
+                            ma[id1, id2] = 0;
+                            ma[id2, id1] = 0;
+                        }
+                    }
 
-                    //Corrige MA e MI
-                    ma[id1, id2] = 0;
-                    ma[id2, id1] = 0;
+                    Controls.Remove(vertices[idxSel].Label);
+                    arestas[id1] = null;
+                    vertices.RemoveAt(idxSel);
+
+                    idxSel = -1;
+                }
+                else //Digrafo
+                {
+
                 }
                 
-                Controls.Remove(vertices[idxSel].Label);
-                arestas[id1] = null;
-                vertices.RemoveAt(idxSel);
-
-                idxSel = -1;
                 atualizaTudo();
             }
         }
@@ -216,27 +267,30 @@ namespace Grafos
         private void showMA()
         {
             lbxMA.Items.Clear();
-            String S = "    | ";
-            for (int i = 0; i < MAXLEN; i++)
-                if(arestas[i] != null)
-                    S += "  " + rotulos[i];
-
-            lbxMA.Items.Add(S);
-            S = "------";
-            for (int i = 0; i < MAXLEN; i++)
-                if (arestas[i] != null)
-                    S += "----";
-
-            lbxMA.Items.Add(S);
-            for(int i = 0; i < MAXLEN; i++)
+            if(ma != null)
             {
-                if (arestas[i] != null)
+                String S = "    | ";
+                for (int i = 0; i < MAXLEN; i++)
+                    if (arestas[i] != null)
+                        S += "  " + rotulos[i];
+
+                lbxMA.Items.Add(S);
+                S = "------";
+                for (int i = 0; i < MAXLEN; i++)
+                    if (arestas[i] != null)
+                        S += "----";
+
+                lbxMA.Items.Add(S);
+                for (int i = 0; i < MAXLEN; i++)
                 {
-                    S = rotulos[i] + "  | ";
-                    for (int j = 0; j < MAXLEN; j++)
-                        if (arestas[j] != null)
-                            S += "  " + ma[i, j];
-                    lbxMA.Items.Add(S);
+                    if (arestas[i] != null)
+                    {
+                        S = rotulos[i] + "  | ";
+                        for (int j = 0; j < MAXLEN; j++)
+                            if (arestas[j] != null)
+                                S += "  " + ma[i, j];
+                        lbxMA.Items.Add(S);
+                    }
                 }
             }
         }
@@ -244,21 +298,19 @@ namespace Grafos
         private void showMI()
         {
             lbxMI.Items.Clear();
-
-            //Criada a partir da MI
             miCol = 0;
             mi = new int[MAXLEN, MAXLEN * (MAXLEN - 1) / 2];
-            for (int i = 0, j = 0; i < MAXLEN; i++, j++)
+            for (int i = 0; i < MAXLEN; i++)
                 if(arestas[i] != null)
-                {
-                    for (int k = j; k < MAXLEN; k++)
-                        if (arestas[k] != null && ma[i, k] != 0)
+                    foreach(Aresta a in arestas[i])
+                        if(verificaMi(rotulos[i].ToString(), rotulos[a.Vertice.Label.Text[0] - 65].ToString()))
                         {
-                            milabel[miCol] = "(" + rotulos[i].ToString() + "," + rotulos[k].ToString() + ")";
-                            mi[i, miCol] = ma[i, k];
-                            mi[k, miCol++] = ma[i, k];
+                            milabel[miCol] = "(" + rotulos[i].ToString() + "," + rotulos[a.Vertice.Label.Text[0] - 65].ToString() + ")";
+                            int o = 1;
+                            int.TryParse(a.Value.Text, out o);
+                            mi[i, miCol] = o == 0 ? 1 : o;
+                            mi[a.Vertice.Label.Text[0] - 65, miCol++] = o == 0 ? 1 : o; 
                         }
-                }
 
             String S = "    | ";
             for (int i = 0; i < miCol; i++)
@@ -282,19 +334,19 @@ namespace Grafos
                 }
         }
 
-        private bool verificaLista(List<Aresta> la, string label)
+        private int verificaLista(List<Aresta> la, string label1)
         {
-            bool flag = false;
+            int i = 0, cont = 0;
+            string s;
 
-            int i = 0;
-            while (i < la.Count && !flag)
+            while (i < la.Count && cont < 2)
             {
-                if (la[i].Vertice.Label.Equals(label))
-                    flag = true;
-
+                if (la[i].Vertice.Label.Text.Equals(label1))
+                    cont++;
                 i++;
             }
-            return flag;
+
+            return cont;
         }
 
         private void lost_Focus(object sender, EventArgs e) //Altera os valores quando o foco da TB de valor é alterado
@@ -317,8 +369,11 @@ namespace Grafos
                 num = 1;
             }
 
-            ma[i1, i2] = num;
-            ma[i2, i1] = num;
+            if(ma != null)
+                ma[i1, i2] = num;
+
+            if(!ckbDigrafo.Checked && ma != null)
+                ma[i2, i1] = num;
 
             atualizaTudo();
         }
@@ -351,6 +406,168 @@ namespace Grafos
             updateLabel();
         }
 
+        private void LbxMA_MouseClick(object sender, MouseEventArgs e)
+        {
+            string s;
+            int i;
+            if(ma != null)
+            {
+                for (i = 0; i < MAXLEN; i++)
+                    if (arestas[i] != null)
+                        if (ma[i, i] != 0)
+                            break;
+
+                if (i == MAXLEN)
+                {
+                    int contant = 0, cont = 0;
+                    int i2 = 0;
+                    while (arestas[i2] == null)
+                        i2++;
+
+                    for (i = 0; i < MAXLEN && contant == cont; i++)
+                        if(arestas[i] != null)
+                        {
+                            cont = 0;
+                            for (int j = 0; j < MAXLEN; j++)
+                                if (arestas[j] != null && ma[i, j] != 0)
+                                {
+                                    if (i == i2)
+                                        contant++;
+                                    cont++;
+                                }
+                        }
+
+                    if (cont == contant)
+                    {
+                        if (contant == vertices.Count - 1)
+                            s = "Grafo: " + (vertices.Count - 1) + "v";
+                        else
+                            s = "Grafo: " + contant + " - Regular";
+                    }
+                    else
+                        s = "Grafo: Simples";
+                }
+                else
+                    s = "Sem Classificação";
+
+                MessageBox.Show(s);
+            }
+        }
+
+        private void LbxMI_MouseClick(object sender, MouseEventArgs e)
+        {
+            int i, cont;
+            string s;
+            for (i = 0; i < miCol; i++) // Procura ciclo
+            {
+                cont = 0;
+                for (int j = 0; j < MAXLEN; j++)
+                    if (arestas[j] != null && mi[j, i] != 0)
+                        cont++;
+
+                if (cont == 1)
+                    break;
+            }
+
+            if (i == miCol)
+                for (i = 0; i < miCol; i++)
+                    for (int j = i + 1; j < miCol; j++)
+                        if (milabel[i].Equals(milabel[j]))
+                            break;
+
+            if (i == miCol)
+            {
+                int i2 = 0, qtdAnt = 0;
+                while (i2 < MAXLEN && arestas[i2] == null)
+                    i2++;
+
+                
+                for (i = 0; i < miCol; i++)
+                    if (mi[i2, i] != 0)
+                        qtdAnt++;
+
+                for(i = i2 + 1; i < MAXLEN; i++)
+                {
+                    cont = 0;
+                    if (arestas[i] != null)
+                    {
+                        for (int j = 0; j < miCol; j++)
+                            if (mi[i, j] != 0)
+                                cont++;
+                        if (qtdAnt != cont)
+                            break;
+                    }
+                }
+
+                if (i == MAXLEN)
+                {
+                    if (qtdAnt == vertices.Count - 1)
+                        s = "Grafo: " + qtdAnt + "v";
+                    else
+                        s = "Grafo: " + qtdAnt + " - Regular";
+                }
+                else
+                    s = "Grafo: Simples";
+            }
+            else
+                s = "Sem Classificação";
+            MessageBox.Show(s);
+        }
+
+        private void LbxLista_MouseClick(object sender, MouseEventArgs e)
+        {
+            bool flag = false;
+            string s;
+            for(int i = 0; i < MAXLEN && !flag; i++)
+            {
+                if(arestas[i] != null)
+                    foreach (Aresta a in arestas[i])
+                        if (a.Vertice.Label.Text.Equals(rotulos[i].ToString()))
+                            flag = true;
+            }
+            if (!flag)
+            {
+                int qtdAnt, i = 0;
+                while (arestas[i] == null)
+                    i++;
+                qtdAnt = arestas[i].Count;
+
+                for (i = 1; i < MAXLEN; i++)
+                    if (arestas[i] != null)
+                        if (arestas[i].Count != qtdAnt)
+                            break;
+
+                if (i == MAXLEN)
+                {
+                    if (qtdAnt == vertices.Count - 1)
+                        s = "Grafo: " + (vertices.Count - 1) + "v";
+                    else
+                        s = "Grafo: " + qtdAnt + " - Regular";
+                }
+                else
+                    s = "Grafo: Simples";
+            }
+
+            else
+                s = "Sem Classificação";
+
+            MessageBox.Show(s);
+        }
+
+        private bool verificaMi(string a, string b)
+        {
+            int i;
+            string[] l;
+
+            for(i = 0; i < miCol; i++)
+            {
+                l = milabel[i].Replace("(", "").Replace(")", "").Split(',');
+                if (l[0].Equals(b) && l[1].Equals(a))
+                    break;
+            }
+            return i == miCol;
+        }
+
         private void updateLabel()
         {
             if (idx1 != -1)
@@ -362,6 +579,11 @@ namespace Grafos
                 lbEx.Text = vertices[idxSel].Label.Text;
             else
                 lbEx.Text = "Nenhum";
+
+            if (vertices.Count == 0)
+                ckbDigrafo.Enabled = true;
+            else
+                ckbDigrafo.Enabled = false;
 
             lbTot.Text = vertices.Count + "";
         }
